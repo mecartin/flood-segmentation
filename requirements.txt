@@ -1,0 +1,26 @@
+# Core deep learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Geospatial / image IO
+rasterio>=1.3.0
+Pillow>=9.0.0
+
+# Data handling
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Training utilities
+tqdm>=4.65.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Dataset download (optional - for Python-based GCS download)
+google-cloud-storage>=2.10.0
+
+# Notebook support
+ipykernel>=6.0.0
+ipywidgets>=8.0.0

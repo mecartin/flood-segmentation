@@ -1,0 +1,78 @@
+# =============================================================================
+# Weather-Aware Flood Segmentation — .gitignore
+# =============================================================================
+
+# ── Data (large, downloaded separately) ──────────────────────────────────────
+data/raw/
+data/processed/
+
+# ── Model checkpoints (large binary files) ───────────────────────────────────
+results/saved_models/*.pth
+results/saved_models/*.pt
+results/saved_models/*.ckpt
+
+# ── Generated outputs (reproducible, not source) ─────────────────────────────
+results/figures/
+results/predictions/
+
+# Keep the results directory tracked (for metrics JSONs and ablation CSV)
+!results/
+!results/.gitkeep
+!results/metrics_baseline.json
+!results/metrics_multimodal.json
+!results/ablation_summary.csv
+
+# ── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.conda/
+*.egg-info/
+dist/
+build/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Testing / coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── IDEs ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── OS files ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Rasterio / GDAL temp files ───────────────────────────────────────────────
+*.aux.xml
+*.ovr
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temp/scratch files ───────────────────────────────────────────────────────
+patch.py
+patch_abs.py
+tmp/
+scratch/

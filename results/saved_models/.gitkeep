@@ -1,0 +1,2 @@
+# Model checkpoints (.pth) are excluded by .gitignore (too large).
+# Run the notebooks to generate and save checkpoints here.
