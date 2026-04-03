@@ -24,24 +24,6 @@ from typing import Optional
 
 
 # ---------------------------------------------------------------------------
-# Utility: weight initialisation
-# ---------------------------------------------------------------------------
-
-def _init_weights(m: nn.Module):
-    if isinstance(m, nn.Conv2d):
-        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-        if m.bias is not None:
-            nn.init.zeros_(m.bias)
-    elif isinstance(m, nn.BatchNorm2d):
-        nn.init.ones_(m.weight)
-        nn.init.zeros_(m.bias)
-    elif isinstance(m, nn.Linear):
-        nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            nn.init.zeros_(m.bias)
-
-
-# ---------------------------------------------------------------------------
 # Building blocks
 # ---------------------------------------------------------------------------
 
@@ -108,6 +90,8 @@ class ChannelAttention(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(mid, channels, bias=False),
         )
+        # Initialize gate completely neutral (scale=0.5) to keep skip connections alive
+        nn.init.zeros_(self.fc[2].weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, C, _, _ = x.shape
@@ -123,6 +107,7 @@ class SpatialAttention(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv = nn.Conv2d(2, 1, kernel_size=7, padding=3, bias=False)
+        nn.init.zeros_(self.conv.weight) # Neutral initialization (scale=0.5)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         avg = x.mean(dim=1, keepdim=True)
@@ -215,15 +200,17 @@ class BaselineUNet(nn.Module):
         self.up1 = Up(c * 2,  c,      c,       use_attention=True)
         self.out_conv = nn.Conv2d(c, 1, kernel_size=1)
 
-        self.apply(_init_weights)
-
     def forward(self, img: torch.Tensor, weather: Optional[torch.Tensor] = None) -> torch.Tensor:
         e1 = self.enc1(img)
         e2 = self.enc2(e1)
         e3 = self.enc3(e2)
         e4 = self.enc4(e3)
         b  = self.dropblock(self.bottleneck(e4))
-        return self.out_conv(self.up1(self.up2(self.up3(self.up4(b, e4), e3), e2), e1))
+        d4 = self.up4(b, e4)
+        d3 = self.up3(d4, e3)
+        d2 = self.up2(d3, e2)
+        d1 = self.up1(d2, e1)
+        return self.out_conv(d1)
 
 
 # ---------------------------------------------------------------------------
@@ -329,10 +316,7 @@ class WeatherAwareUNet(nn.Module):
         self.film3 = FiLMBlock(weather_emb_dim, c * 4)
         self.film2 = FiLMBlock(weather_emb_dim, c * 2)
         self.film1 = FiLMBlock(weather_emb_dim, c)
-
         self.out_conv = nn.Conv2d(c, 1, kernel_size=1)
-
-        self.apply(_init_weights)
 
     def forward(self, img: torch.Tensor, weather: torch.Tensor) -> torch.Tensor:
         # Encode image

@@ -199,7 +199,7 @@ def train_model(
         optimizer, T_0=cosine_T0, T_mult=1, eta_min=lr * 0.01,
     )
 
-    loss_fn = SymmetricUnifiedFocalLoss(delta=0.6, gamma=0.5)
+    loss_fn = BCEDiceLoss()
     scaler  = GradScaler('cuda', enabled=(device.type == 'cuda'))
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
