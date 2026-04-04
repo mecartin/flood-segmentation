@@ -18,10 +18,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast, GradScaler
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from typing import Dict, List, Tuple, Optional
 
-from src.losses import SymmetricUnifiedFocalLoss, BCEDiceLoss
+from src.losses import SymmetricUnifiedFocalLoss, BCEDiceLoss, FocalDiceLoss, TverskyFocalLoss
 from src.metrics import MetricTracker
 
 
@@ -199,7 +199,7 @@ def train_model(
         optimizer, T_0=cosine_T0, T_mult=1, eta_min=lr * 0.01,
     )
 
-    loss_fn = BCEDiceLoss()
+    loss_fn = TverskyFocalLoss()
     scaler  = GradScaler('cuda', enabled=(device.type == 'cuda'))
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -292,7 +292,7 @@ def evaluate_model(
     model.eval()
 
     loader  = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-    loss_fn = BCEDiceLoss()
+    loss_fn = TverskyFocalLoss()
     tracker = MetricTracker()
     total_loss = 0.0
     use_amp = (device.type == 'cuda')

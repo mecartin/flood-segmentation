@@ -217,30 +217,38 @@ class BaselineUNet(nn.Module):
 # Weather MLP branch
 # ---------------------------------------------------------------------------
 
-class WeatherMLP(nn.Module):
-    """
-    Weather feature encoder with LayerNorm for stable training.
-    Outputs a rich embedding used for multi-scale FiLM modulation.
-    """
+class GradientScaler(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, scale):
+        ctx.scale = scale
+        return x.view_as(x)
 
-    def __init__(self, in_dim: int, emb_dim: int = 128):
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output * ctx.scale, None
+
+def grad_scale(x, scale):
+    return GradientScaler.apply(x, scale)
+
+class WeatherMLP(nn.Module):
+    """Refined smaller MLP for weather feature extraction to prevent feature dominance."""
+    def __init__(self, input_dim: int = 5, output_dim: int = 64):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, 64),
+        self.mlp = nn.Sequential(
+            nn.Linear(input_dim, 64),
             nn.LayerNorm(64),
             nn.GELU(),
-            nn.Dropout(0.1),
-            nn.Linear(64, 128),
-            nn.LayerNorm(128),
+            nn.Dropout(0.3),
+            nn.Linear(64, output_dim),
+            nn.LayerNorm(output_dim),
             nn.GELU(),
-            nn.Dropout(0.1),
-            nn.Linear(128, emb_dim),
-            nn.LayerNorm(emb_dim),
-            nn.GELU(),
+            nn.Dropout(0.5), # Extreme dropout to fight overfitting
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+        # Boost gradients to help weather catch up to image features
+        x = grad_scale(x, 2.0) 
+        return self.mlp(x)
 
 
 class FiLMBlock(nn.Module):
@@ -252,12 +260,19 @@ class FiLMBlock(nn.Module):
 
     def __init__(self, emb_dim: int, num_channels: int):
         super().__init__()
-        self.gamma_fc = nn.Linear(emb_dim, num_channels)
-        self.beta_fc  = nn.Linear(emb_dim, num_channels)
+        # Embedding dimension matches the feature maps of each level
+        self.gamma = nn.Linear(emb_dim, num_channels)
+        self.beta  = nn.Linear(emb_dim, num_channels)
+
+        # Initialise to neutral (scale=1, shift=0)
+        nn.init.zeros_(self.gamma.weight)
+        nn.init.zeros_(self.gamma.bias)
+        nn.init.zeros_(self.beta.weight)
+        nn.init.zeros_(self.beta.bias)
 
     def forward(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-        gamma = self.gamma_fc(w).unsqueeze(-1).unsqueeze(-1)   # [B, C, 1, 1]
-        beta  = self.beta_fc(w).unsqueeze(-1).unsqueeze(-1)
+        gamma = self.gamma(w).unsqueeze(-1).unsqueeze(-1)   # [B, C, 1, 1]
+        beta  = self.beta(w).unsqueeze(-1).unsqueeze(-1)
         return x * (1.0 + gamma) + beta
 
 
@@ -287,12 +302,11 @@ class WeatherAwareUNet(nn.Module):
     Output : mask [B, 1, H, W]  (raw logits — apply sigmoid for probabilities)
     """
 
-    def __init__(self, img_ch: int = 2, weather_dim: int = 5,
-                 base_ch: int = 64, weather_emb_dim: int = 128,
-                 drop_prob: float = 0.1):
+    def __init__(self, img_ch: int = 2, weather_dim: int = 5, base_ch: int = 64, drop_prob: float = 0.1):
         super().__init__()
         c = base_ch
-        self.weather_mlp = WeatherMLP(weather_dim, emb_dim=weather_emb_dim)
+        weather_emb_dim = 64  # Matches WeatherMLP output
+        self.weather_mlp = WeatherMLP(weather_dim, weather_emb_dim)
 
         self.enc1 = DoubleConv(img_ch, c)
         self.enc2 = Down(c,     c * 2)
@@ -327,6 +341,14 @@ class WeatherAwareUNet(nn.Module):
 
         # Encode weather
         w = self.weather_mlp(weather)   # [B, emb_dim]
+
+        # Modality Dropout: 30% chance to completely drop weather modality
+        # This forces the Unet to not rely exclusively on the weather gating
+        if self.training:
+            mask = torch.empty(w.size(0), 1, 1, 1, device=w.device).bernoulli_(1.0 - 0.3)
+            # Flatten to [B, 1] to mask the embeddings
+            mask = mask.view(w.size(0), 1)
+            w = w * mask
 
         # Bottleneck with FiLM before processing
         pooled = self.pool(e4)

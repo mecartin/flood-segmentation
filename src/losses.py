@@ -34,9 +34,9 @@ class DiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pred_prob = torch.sigmoid(pred)          # logits → probabilities
+        pred_prob = torch.sigmoid(pred).to(torch.float32)  # Cast to float32 to prevent AMP sum overflow
         pred_flat = pred_prob.view(-1)
-        target_flat = target.view(-1)
+        target_flat = target.view(-1).to(torch.float32)
         intersection = (pred_flat * target_flat).sum()
         dice_coeff = (2.0 * intersection + self.smooth) / (
             pred_flat.sum() + target_flat.sum() + self.smooth
@@ -73,9 +73,11 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        bce = F.binary_cross_entropy_with_logits(pred, target, reduction='none')  # AMP-safe
+        target_f = target.to(torch.float32)
+        bce = F.binary_cross_entropy_with_logits(pred, target_f, reduction='none')  # AMP-safe
         p_t = torch.exp(-bce)
-        focal = self.alpha * (1 - p_t) ** self.gamma * bce
+        alpha_t = target_f * self.alpha + (1 - target_f) * (1 - self.alpha)
+        focal = alpha_t * (1 - p_t) ** self.gamma * bce
         return focal.mean()
 
 
@@ -121,9 +123,9 @@ class TverskyLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        prob = torch.sigmoid(pred)
+        prob = torch.sigmoid(pred).to(torch.float32)
         p    = prob.view(-1)
-        t    = target.view(-1)
+        t    = target.view(-1).to(torch.float32)
 
         tp = (p * t).sum()
         fp = (p * (1 - t)).sum()
