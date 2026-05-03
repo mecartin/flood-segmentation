@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """
-demo.py
-
-End-to-end demonstration script for the Weather-Aware Flood Segmentation project.
 Loads the pre-trained Baseline and Weather-Aware (Multimodal) models, runs inference 
 on a selection of test images, and generates a side-by-side visual comparison.
 
