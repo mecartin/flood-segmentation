@@ -190,11 +190,18 @@ Image [B, 2, H, W]          Weather [B, 5]
 
 ## Results
 
+> The following test set evaluation metrics were obtained after completing the ablation study:
 
 | Model | Test IoU | Test Dice | Test F1 |
 |-------|----------|-----------|---------|
-| Baseline U-Net v2 | — | — | — |
-| Weather-Aware U-Net v2 | — | — | — |
+| Baseline U-Net | 0.399 | 0.523 | 0.523 |
+| Weather-Aware U-Net | 0.332 | 0.464 | 0.464 |
+
+## Inferences & Conclusions
+
+- **Generalisation Bottleneck:** Despite achieving higher validation metrics, the Weather-Aware Multimodal U-Net degrades performance across most out-of-distribution test set metrics compared to the Baseline image-only U-Net.
+- **Overfitting to Modality:** The Multimodal model is severely overfitting and creating spurious correlations from the weather data due to dataset sample limits. It learns to "cheat" using the weather features, rather than safely leveraging actual geographical image features.
+- **Future Improvements:** To combat the network relying entirely on the gating from the weather layer, future steps include applying **Modality Dropout** (forcing the network to act as an unmodulated image-only U-Net for a subset of training batches) and increasing regularisation via heavier dropout within the weather multilayer perceptron.
 
 
 ---
