@@ -1,6 +1,7 @@
 """
 Loss functions for flood segmentation.
 All losses accept RAW LOGITS (no sigmoid applied beforehand).
+
 This is required for AMP (autocast) safety — F.binary_cross_entropy and
 nn.BCELoss are unsafe under autocast; the *_with_logits variants are safe.
 
