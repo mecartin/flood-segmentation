@@ -190,12 +190,12 @@ Image [B, 2, H, W]          Weather [B, 5]
 
 ## Results
 
-> Results are populated after running the notebooks. The JSON files in `results/` are updated automatically.
 
 | Model | Test IoU | Test Dice | Test F1 |
 |-------|----------|-----------|---------|
 | Baseline U-Net v2 | — | — | — |
 | Weather-Aware U-Net v2 | — | — | — |
+
 
 ---
 
